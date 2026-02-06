@@ -1,0 +1,30 @@
+.env
+**/application.yml
+**/application.properties
+**/PingController.java
+**/PasswordHashGenerator
+**/application.yml
+# Maven target directories
+**/target/
+**/out/
+
+# JAR and WAR files
+*.jar
+*.war
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Eclipse
+*.classpath
+*.project
+*.settings/
+
+*.log
+logs/
+hs_err_pid*
+
+.DS_Store
+Thumbs.db
