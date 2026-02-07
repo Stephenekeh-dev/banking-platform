@@ -1,0 +1,72 @@
+spring:
+  application:
+    name: api_gate
+server:
+  port: 8080
+
+
+
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+
+      routes:
+
+        # ================= COREBANKING =================
+
+        - id: corebanking-auth
+          uri: lb://COREBANKING-SERVICE
+          predicates:
+            - Path=/api/auth/**
+
+        - id: corebanking-customer
+          uri: lb://COREBANKING-SERVICE
+          predicates:
+            - Path=/api/customers/**
+
+        - id: corebanking-account
+          uri: lb://COREBANKING-SERVICE
+          predicates:
+            - Path=/api/accounts/**
+
+        - id: corebanking-transaction
+          uri: lb://COREBANKING-SERVICE
+          predicates:
+            - Path=/api/transactions/**
+
+        - id: corebanking-ledger
+          uri: lb://COREBANKING-SERVICE
+          predicates:
+            - Path=/api/ledger/**
+
+        # ================= AUDIT =================
+
+        - id: audit-service
+          uri: lb://AUDIT-SERVICE
+          predicates:
+            - Path=/api/audit/**
+
+        - id: reporting-service
+          uri: lb://AUDIT-SERVICE
+          predicates:
+            - Path=/api/reports/**
+
+# ================= EUREKA =================
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+
+# ================= ACTUATOR =================
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

@@ -16,16 +16,20 @@ import java.util.stream.Collectors;
 @Component
 public class JwtUtil {
 
-    private static final String SECRET_KEY =
-            "";
+    private final JwtConfig jwtConfig;
 
     private static final long EXPIRATION_MS = 1000 * 60 * 60; // 1 hour
+
+    //  Constructor injection (BEST PRACTICE)
+    public JwtUtil(JwtConfig jwtConfig) {
+        this.jwtConfig = jwtConfig;
+    }
 
     /* ================= TOKEN GENERATION ================= */
 
     public String generateToken(User user) {
         List<String> roles = user.getRoles().stream()
-                .map(Role::getName)   // ROLE_ADMIN, ROLE_TELLER, ROLE_AUDITOR
+                .map(Role::getName)
                 .toList();
 
         return Jwts.builder()
@@ -69,7 +73,7 @@ public class JwtUtil {
     }
 
     private Key getSignKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
+        byte[] keyBytes = Decoders.BASE64.decode(jwtConfig.getSecretKey());
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }
