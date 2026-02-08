@@ -26,7 +26,8 @@ import com.itextpdf.text.pdf.*;
 
 @Service
 @RequiredArgsConstructor
-public class ReportingService {
+public class
+ReportingService {
 
     private final TransactionClient transactionClient;
     private final LedgerClient ledgerClient;
@@ -145,9 +146,13 @@ public class ReportingService {
     }
 
     // ==================================================
-    // 4️⃣ ACCOUNT STATEMENT (PDF ONLY)
+    // 4ACCOUNT STATEMENT (PDF ONLY)
     // ==================================================
-    public ResponseEntity<?> generateAccountStatement(String accountNumber) {
+    public ResponseEntity<?> generateAccountStatement(
+            String accountNumber,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
 
         // 1️⃣ Fetch the account
         AccountDto account;
@@ -157,18 +162,21 @@ public class ReportingService {
             return ResponseEntity.notFound().build();
         }
 
-        // 2️⃣ Fetch transactions for this account
+        // 2️⃣ Fetch transactions within date range
         List<TransactionDto> transactions;
         try {
-            transactions = transactionClient.getTransactionsByAccount(accountNumber);
+            transactions = transactionClient.getTransactionsByAccountAndDateRange(
+                    accountNumber, startDate, endDate
+            );
         } catch (Exception ex) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Could not fetch transactions: " + ex.getMessage());
         }
 
-        // 3️⃣ Generate PDF
+        // 3️⃣ Generate PDF / DTO
         try {
-            return generatePdfStatement(accountNumber, account, transactions);
+            AccountStatementDto statement = buildAccountStatement(account, transactions, startDate, endDate);
+            return ResponseEntity.ok(statement);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Statement generation failed: " + e.getMessage());
@@ -219,4 +227,46 @@ public class ReportingService {
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(new ByteArrayResource(out.toByteArray()));
     }
+
+    private AccountStatementDto buildAccountStatement(
+            AccountDto account,
+            List<TransactionDto> transactions,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
+        BigDecimal runningBalance = BigDecimal.ZERO;
+        List<StatementLineDto> statementLines = new ArrayList<>();
+
+        for (TransactionDto tx : transactions) {
+            StatementLineDto line = new StatementLineDto();
+            line.setDate(tx.getCreatedAt());
+            line.setNarration(tx.getNarration());
+            line.setReference(tx.getReferenceId());
+
+            if ("DEPOSIT".equalsIgnoreCase(tx.getType())) {
+                line.setCredit(tx.getAmount());
+                line.setDebit(BigDecimal.ZERO);
+                runningBalance = runningBalance.add(tx.getAmount());
+            } else if ("WITHDRAWAL".equalsIgnoreCase(tx.getType()) || "TRANSFER".equalsIgnoreCase(tx.getType())) {
+                line.setDebit(tx.getAmount());
+                line.setCredit(BigDecimal.ZERO);
+                runningBalance = runningBalance.subtract(tx.getAmount());
+            }
+
+            line.setRunningBalance(runningBalance);
+            statementLines.add(line);
+        }
+
+        AccountStatementDto statement = new AccountStatementDto();
+        statement.setAccountNumber(account.getAccountNumber());
+        statement.setAccountType(account.getAccountType());
+        statement.setOpeningBalance(transactions.isEmpty() ? BigDecimal.ZERO : statementLines.get(0).getRunningBalance().subtract(statementLines.get(0).getCredit() == null ? BigDecimal.ZERO : statementLines.get(0).getCredit()));
+        statement.setClosingBalance(runningBalance);
+        statement.setStartDate(startDate);
+        statement.setEndDate(endDate);
+        statement.setTransactions(statementLines);
+
+        return statement;
+    }
+
 }

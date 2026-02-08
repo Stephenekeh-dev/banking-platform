@@ -15,6 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.steve.corebanking.transaction.TransactionType;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,13 +27,15 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final AccountService accountService;
     private final LedgerService ledgerService;
+    private final TransactionMapper transactionMapper;
 
     public TransactionService(TransactionRepository transactionRepository,
                               AccountService accountService,
-                              LedgerService ledgerService) {
+                              LedgerService ledgerService, TransactionMapper transactionMapper) {
         this.transactionRepository = transactionRepository;
         this.accountService = accountService;
         this.ledgerService = ledgerService;
+        this.transactionMapper = transactionMapper;
     }
 
     private TransactionResponseDto toDto(Transaction tx) {
@@ -147,6 +152,25 @@ public class TransactionService {
                 accountNumber,   // use same field for both src & dest
                 pageable
         );
+    }
+    public List<TransactionDto> getTransactionsByAccountAndDateRange(
+            String accountNumber,
+            LocalDate startDate,
+            LocalDate endDate
+    ) {
+
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.atTime(LocalTime.MAX);
+
+        return transactionRepository
+                .findByAccountNumberAndTransactionDateBetween(
+                        accountNumber,
+                        start,
+                        end
+                )
+                .stream()
+                .map(transactionMapper::toDto)
+                .toList();
     }
 
 

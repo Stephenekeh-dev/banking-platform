@@ -27,4 +27,5 @@ public class Transaction {
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
+    private String createdBy;
 }

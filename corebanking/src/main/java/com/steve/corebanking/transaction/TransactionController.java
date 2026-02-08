@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -64,6 +65,19 @@ public class TransactionController {
         dto.setNarration(tx.getNarration());
         dto.setTimestamp(tx.getCreatedAt().toString());
         return dto;
+    }
+    @GetMapping("/account/{accountNumber}/range")
+    public List<TransactionDto> getByAccountAndDateRange(
+            @PathVariable String accountNumber,
+            @RequestParam LocalDate startDate,
+            @RequestParam LocalDate endDate
+    ) {
+        return transactionService
+                .getTransactionsByAccountAndDateRange(
+                        accountNumber,
+                        startDate,
+                        endDate
+                );
     }
 
 

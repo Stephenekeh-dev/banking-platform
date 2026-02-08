@@ -43,7 +43,11 @@ public class ReportingController {
 
     @PreAuthorize("hasRole('ADMIN') or hasRole('AUDITOR')")
     @GetMapping("/statement/{accountNumber}")
-    public ResponseEntity<?> getAccountStatement(@PathVariable String accountNumber) {
-        return reportingService.generateAccountStatement(accountNumber);
+    public ResponseEntity<?> getAccountStatement(
+            @PathVariable String accountNumber,
+            @RequestParam LocalDate startDate,
+            @RequestParam LocalDate endDate
+    ) {
+        return reportingService.generateAccountStatement(accountNumber, startDate, endDate);
     }
 }
