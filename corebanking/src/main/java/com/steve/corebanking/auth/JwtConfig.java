@@ -10,6 +10,7 @@ public class JwtConfig {
     private String secretKey;
 
     public String getSecretKey() {
+
         return secretKey;
     }
 }
