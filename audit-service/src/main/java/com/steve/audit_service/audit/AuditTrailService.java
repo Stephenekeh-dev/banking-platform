@@ -25,7 +25,7 @@ public class AuditTrailService {
     public void logEvent(
             String username,
             String role,
-            String actionType,
+            AuditActionType actionType,
             String resourceId,
             String status,
             String details,
