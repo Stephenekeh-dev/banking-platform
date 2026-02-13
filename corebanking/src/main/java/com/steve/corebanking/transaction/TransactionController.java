@@ -66,6 +66,7 @@ public class TransactionController {
         dto.setTimestamp(tx.getCreatedAt().toString());
         return dto;
     }
+    @PreAuthorize("hasRole('TELLER') or hasRole('AUDITOR') or hasRole('ADMIN')")
     @GetMapping("/account/{accountNumber}/range")
     public List<TransactionDto> getByAccountAndDateRange(
             @PathVariable String accountNumber,

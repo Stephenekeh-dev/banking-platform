@@ -13,3 +13,6 @@ spring:
   h2:
     console:
       enabled: true
+
+jwt:
+  secret: v2DQ/qdsoALW2JjL8a86ENcoBIE1QWAm2sIn10LJa1U=
