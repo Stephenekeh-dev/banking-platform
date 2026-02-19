@@ -3,7 +3,7 @@ package com.steve.corebanking;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.steve.corebanking")
 public class CoreBankingApplication {
 
 	public static void main(String[] args) {

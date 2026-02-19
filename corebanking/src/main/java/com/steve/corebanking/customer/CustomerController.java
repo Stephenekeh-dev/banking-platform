@@ -1,5 +1,6 @@
 package com.steve.corebanking.customer;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,7 +20,8 @@ public class CustomerController {
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/create")
     public ResponseEntity<?> createCustomer(@RequestBody Customer customer) {
-        return ResponseEntity.ok(customerService.createCustomer(customer));
+        Customer saved = customerService.createCustomer(customer);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
     @PreAuthorize("hasRole('ADMIN')")

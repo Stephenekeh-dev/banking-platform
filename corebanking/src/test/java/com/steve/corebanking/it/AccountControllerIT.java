@@ -8,6 +8,7 @@ import com.steve.corebanking.customer.Customer;
 import com.steve.corebanking.customer.CustomerRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
 
 
@@ -18,6 +19,8 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import java.math.BigDecimal;
 
@@ -26,9 +29,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
-@SpringBootTest(
-        classes = CoreBankingApplication.class
-)
+@SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 class AccountControllerIT {
@@ -36,6 +37,12 @@ class AccountControllerIT {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private RequestMappingHandlerMapping handlerMapping;
+
+
+    @Autowired
+    private ApplicationContext context;
     @Autowired
     private AccountRepository accountRepository;
 
@@ -49,20 +56,21 @@ class AccountControllerIT {
     }
 
     @Test
+    @WithMockUser(username = "admin", roles = {"ADMIN"})
     void createCustomer_shouldPersistCustomer() throws Exception {
 
         String payload = """
-        {
-          "firstName": "John",
-          "lastName": "Doe",
-          "email": "john@example.com",
-          "phone": "08012345678",
-          "address": "Lagos",
-          "bvn": "12345678901"
-        }
-        """;
+    {
+      "firstName": "John",
+      "lastName": "Doe",
+      "email": "john@example.com",
+      "phone": "08012345678",
+      "address": "Lagos",
+      "bvn": "12345678901"
+    }
+    """;
 
-        mockMvc.perform(post("/api/customers")
+        mockMvc.perform(post("/api/customers/create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isCreated())
@@ -72,6 +80,7 @@ class AccountControllerIT {
     }
 
     @Test
+    @WithMockUser(username = "teller1", roles = {"TELLER"})
     void depositTransaction_shouldUpdateAccountBalance() throws Exception {
 
         Customer customer = new Customer();
@@ -84,8 +93,6 @@ class AccountControllerIT {
 
         customer = customerRepository.save(customer);
 
-
-
         Account account = new Account();
         account.setAccountNumber("ACC123");
         account.setAccountType(AccountType.SAVINGS);
@@ -94,17 +101,16 @@ class AccountControllerIT {
 
         accountRepository.save(account);
 
-
         String payload = """
-        {
-          "accountNumber": "ACC123",
-          "amount": 100,
-          "type": "DEPOSIT",
-          "narration": "Cash deposit"
-        }
-        """;
+    {
+      "accountNumber": "ACC123",
+      "amount": 100.00,
+      "type": "DEPOSIT",
+      "narration": "Cash deposit"
+    }
+    """;
 
-        mockMvc.perform(post("/api/transactions")
+        mockMvc.perform(post("/api/transactions/create")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isOk());
@@ -112,6 +118,23 @@ class AccountControllerIT {
         Account updated =
                 accountRepository.findByAccountNumber("ACC123").orElseThrow();
 
-        assertEquals(new BigDecimal("100"), updated.getBalance());
+        assertEquals(
+                0,
+                updated.getBalance().compareTo(new BigDecimal("100")),
+                "Balance should be updated to 100"
+        );
     }
+
+    @Test
+    void printAllControllers() {
+        context.getBeansWithAnnotation(RestController.class)
+                .forEach((k, v) -> System.out.println(v.getClass().getName()));
+    }
+
+    @Test
+    void printAllMappings() {
+        handlerMapping.getHandlerMethods()
+                .forEach((k, v) -> System.out.println(k + " -> " + v));
+    }
+
 }
