@@ -259,7 +259,7 @@ ReportingService {
 
         AccountStatementDto statement = new AccountStatementDto();
         statement.setAccountNumber(account.getAccountNumber());
-        statement.setAccountType(account.getAccountType());
+        statement.setAccountType(account.getAccountType().name());
         statement.setOpeningBalance(transactions.isEmpty() ? BigDecimal.ZERO : statementLines.get(0).getRunningBalance().subtract(statementLines.get(0).getCredit() == null ? BigDecimal.ZERO : statementLines.get(0).getCredit()));
         statement.setClosingBalance(runningBalance);
         statement.setStartDate(startDate);

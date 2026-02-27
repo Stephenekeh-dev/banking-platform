@@ -11,7 +11,7 @@ import java.util.List;
 
 @FeignClient(
         name = "corebanking",
-        url = "http://localhost:8080"
+        url = "${corebanking.service.url}"
 )
 public interface AccountClient {
 

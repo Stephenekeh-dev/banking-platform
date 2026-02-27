@@ -1,0 +1,32 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  h2:
+    console:
+      enabled: true
+
+  main:
+    web-application-type: servlet
+
+jwt:
+  secret: v2DQ/qdsoALW2JjL8a86ENcoBIE1QWAm2sIn10LJa1U=
+
+logging:
+  level:
+    root: DEBUG
+    org.springframework: DEBUG
+    com.netflix.discovery: DEBUG
