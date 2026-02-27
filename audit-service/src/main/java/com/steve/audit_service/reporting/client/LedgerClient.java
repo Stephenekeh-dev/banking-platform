@@ -9,7 +9,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
-@FeignClient(name = "corebanking", url = "http://localhost:8080/api/ledger")
+@FeignClient(name = "corebanking",
+        url = "${corebanking.service.url}"
+)
 public interface LedgerClient {
 
     @GetMapping("/api/ledger/all/{accountNumber}")

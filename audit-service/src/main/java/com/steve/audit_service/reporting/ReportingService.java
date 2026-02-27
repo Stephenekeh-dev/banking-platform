@@ -35,7 +35,7 @@ ReportingService {
     private final AuditTrailRepository auditTrailRepository;
 
     // ==================================================
-    // 1️⃣ DAILY TRANSACTION REPORT
+    //  DAILY TRANSACTION REPORT
     // ==================================================
     public Map<String, Object> generateDailyTransactionReport(LocalDate date) {
 
@@ -81,7 +81,7 @@ ReportingService {
 
 
     // ==================================================
-    // 2️⃣ LEDGER RECONCILIATION REPORT
+    // LEDGER RECONCILIATION REPORT
     // ==================================================
     public Map<String, Object> generateLedgerReconciliationReport() {
 
@@ -119,7 +119,7 @@ ReportingService {
 
 
     // ==================================================
-    // 3️⃣ SUSPICIOUS ACTIVITY REPORT
+    // SUSPICIOUS ACTIVITY REPORT
     // ==================================================
     public Map<String, Object> generateSuspiciousActivityReport() {
 
@@ -154,7 +154,7 @@ ReportingService {
             LocalDate endDate
     ) {
 
-        // 1️⃣ Fetch the account
+        //  Fetch the account
         AccountDto account;
         try {
             account = accountClient.getAccount(accountNumber);
@@ -162,7 +162,7 @@ ReportingService {
             return ResponseEntity.notFound().build();
         }
 
-        // 2️⃣ Fetch transactions within date range
+        //  Fetch transactions within date range
         List<TransactionDto> transactions;
         try {
             transactions = transactionClient.getTransactionsByAccountAndDateRange(
@@ -173,7 +173,7 @@ ReportingService {
                     .body("Could not fetch transactions: " + ex.getMessage());
         }
 
-        // 3️⃣ Generate PDF / DTO
+        //  Generate PDF / DTO
         try {
             AccountStatementDto statement = buildAccountStatement(account, transactions, startDate, endDate);
             return ResponseEntity.ok(statement);

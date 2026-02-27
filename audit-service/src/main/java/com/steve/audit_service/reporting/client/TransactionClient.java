@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.time.LocalDate;
 import java.util.List;
 
-@FeignClient(name = "corebanking", contextId = "transactionClient", url = "http://localhost:8080/api/transactions")
+@FeignClient(name = "corebanking", contextId = "transactionClient",  url = "${corebanking.service.url}")
 public interface TransactionClient {
 
     @GetMapping("/all")
