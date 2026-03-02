@@ -1,0 +1,47 @@
+# src/test/resources/application-test.yml
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: corebanking-auth
+          uri: http://localhost:9999     # overridden by @DynamicPropertySource
+          predicates:
+            - Path=/api/auth/**
+
+        - id: corebanking-customer
+          uri: http://localhost:9999
+          predicates:
+            - Path=/api/customers/**
+
+        - id: corebanking-account
+          uri: http://localhost:9999
+          predicates:
+            - Path=/api/accounts/**
+
+        - id: corebanking-transaction
+          uri: http://localhost:9999
+          predicates:
+            - Path=/api/transactions/**
+
+        - id: corebanking-ledger
+          uri: http://localhost:9999
+          predicates:
+            - Path=/api/ledger/**
+
+        - id: audit-service
+          uri: http://localhost:9999
+          predicates:
+            - Path=/api/audit/**
+
+        - id: reporting-service
+          uri: http://localhost:9999
+          predicates:
+            - Path=/api/reports/**
+
+eureka:
+  client:
+    enabled: false
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG

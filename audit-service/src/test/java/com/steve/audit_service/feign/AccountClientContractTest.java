@@ -30,6 +30,7 @@ import org.springframework.test.context.TestPropertySource;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -49,7 +50,7 @@ class AccountClientContractTest {
 
     static MockWebServer mockWebServer;
 
-    // ✅ START MOCK SERVER BEFORE SPRING CONTEXT
+    //  START MOCK SERVER BEFORE SPRING CONTEXT
     static {
         try {
             mockWebServer = new MockWebServer();
@@ -91,37 +92,93 @@ class AccountClientContractTest {
     }
 
     @Test
+    void shouldCallGetAllAccountsEndpointAndReturnResponse() throws Exception {
+        mockWebServer.enqueue(
+                new MockResponse()
+                        .setResponseCode(200)
+                        .setHeader("Content-Type", "application/json")
+                        .setBody("""
+                [
+                  { "accountNumber": "ACC001", "accountType": "SAVINGS", "balance": 500.00 },
+                  { "accountNumber": "ACC002", "accountType": "CURRENT", "balance": 1500.00 }
+                ]
+            """)
+        );
+
+        Object response = accountClient.getAllAccounts();
+
+        RecordedRequest request = mockWebServer.takeRequest(3, TimeUnit.SECONDS);
+
+        assertNotNull(request, "No request received by MockWebServer");
+        assertEquals("GET", request.getMethod());
+        assertEquals("/api/accounts/all", request.getPath());
+        assertNotNull(response);
+    }
+
+    @Test
+    void shouldCallFetchAccountsEndpointAndMapToList() throws Exception {
+        mockWebServer.enqueue(
+                new MockResponse()
+                        .setResponseCode(200)
+                        .setHeader("Content-Type", "application/json")
+                        .setBody("""
+                [
+                  { "accountNumber": "ACC001", "accountType": "SAVINGS", "balance": 500.00 },
+                  { "accountNumber": "ACC002", "accountType": "CURRENT", "balance": 1500.00 }
+                ]
+            """)
+        );
+
+        List<AccountDto> accounts = accountClient.fetchAccounts();
+
+        RecordedRequest request = mockWebServer.takeRequest(3, TimeUnit.SECONDS);
+
+        assertNotNull(request, "No request received by MockWebServer");
+        assertEquals("GET", request.getMethod());
+        assertEquals("/accounts", request.getPath());
+
+        assertNotNull(accounts);
+        assertEquals(2, accounts.size());
+
+        assertEquals("ACC001", accounts.get(0).getAccountNumber());
+        assertEquals(AccountType.SAVINGS, accounts.get(0).getAccountType());
+        assertEquals(new BigDecimal("500.00"), accounts.get(0).getBalance());
+
+        assertEquals("ACC002", accounts.get(1).getAccountNumber());
+        assertEquals(AccountType.CURRENT, accounts.get(1).getAccountType());
+        assertEquals(new BigDecimal("1500.00"), accounts.get(1).getBalance());
+    }
+
+    @Test
     void shouldCallGetAccountEndpointAndMapResponse() throws Exception {
-        try {
-            mockWebServer.enqueue(
-                    new MockResponse()
-                            .setResponseCode(200)
-                            .setHeader("Content-Type", "application/json")
-                            .setBody("""
-                                        {
-                                          "accountNumber": "ACC123",
-                                          "accountType": "SAVINGS",
-                                          "balance": 1000.00
-                                        }
-                                    """)
-            );
 
-            AccountDto account = accountClient.getAccount("ACC123");
-            System.out.println(">>> Account received: " + account);
+        // ARRANGE
+        mockWebServer.enqueue(
+                new MockResponse()
+                        .setResponseCode(200)
+                        .setHeader("Content-Type", "application/json")
+                        .setBody("""
+                {
+                  "accountNumber": "ACC123",
+                  "accountType": "SAVINGS",
+                  "balance": 1000.00
+                }
+            """)
+        );
 
-            RecordedRequest request = mockWebServer.takeRequest(3, TimeUnit.SECONDS);
-            System.out.println(">>> Request path: " + (request != null ? request.getPath() : "NULL - no request received"));
+        //  ACT
+        AccountDto account = accountClient.getAccount("ACC123");
+        RecordedRequest request = mockWebServer.takeRequest(3, TimeUnit.SECONDS);
 
-            assertNotNull(request, "No request received by MockWebServer");
-            assertEquals("GET", request.getMethod());
-            assertEquals("/api/accounts/ACC123", request.getPath());
-            assertEquals("ACC123", account.getAccountNumber());
-            assertEquals(AccountType.SAVINGS, account.getAccountType());
-            assertEquals(new BigDecimal("1000.00"), account.getBalance());
+        //  ASSERT: Request
+        assertNotNull(request, "No request received by MockWebServer");
+        assertEquals("GET",                  request.getMethod());
+        assertEquals("/api/accounts/ACC123", request.getPath());
 
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw e;
-        }
+        // ASSERT: Response
+        assertNotNull(account, "Account response should not be null");
+        assertEquals("ACC123",               account.getAccountNumber());
+        assertEquals(AccountType.SAVINGS,    account.getAccountType());
+        assertEquals(new BigDecimal("1000.00"), account.getBalance());
     }
 }
