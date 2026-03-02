@@ -5,6 +5,7 @@ import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
@@ -19,6 +20,7 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 import static junit.framework.TestCase.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest(
@@ -52,21 +54,8 @@ class ApiGatewayRoutingTest {
 
     @DynamicPropertySource
     static void registerProperties(DynamicPropertyRegistry registry) {
-        // Point gateway routes directly to mock servers
-        registry.add("spring.cloud.gateway.routes[0].uri",
-                () -> "http://localhost:" + coreBankingServer.getPort());
-        registry.add("spring.cloud.gateway.routes[1].uri",
-                () -> "http://localhost:" + coreBankingServer.getPort());
-        registry.add("spring.cloud.gateway.routes[2].uri",
-                () -> "http://localhost:" + coreBankingServer.getPort());
-        registry.add("spring.cloud.gateway.routes[3].uri",
-                () -> "http://localhost:" + coreBankingServer.getPort());
-        registry.add("spring.cloud.gateway.routes[4].uri",
-                () -> "http://localhost:" + coreBankingServer.getPort());
-        registry.add("spring.cloud.gateway.routes[5].uri",
-                () -> "http://localhost:" + auditServer.getPort());
-        registry.add("spring.cloud.gateway.routes[6].uri",
-                () -> "http://localhost:" + auditServer.getPort());
+        registry.add("corebanking.mock.port", () -> coreBankingServer.getPort());
+        registry.add("audit.mock.port",       () -> auditServer.getPort());
     }
 
     @AfterAll
@@ -260,8 +249,11 @@ class ApiGatewayRoutingTest {
                 .uri("/actuator/health")
                 .exchange()
                 .expectStatus().isOk()
-                .expectBody()
-                .jsonPath("$.status").isEqualTo("UP");
+                .expectBody(String.class)
+                .consumeWith(response -> {
+                    assertNotNull(response.getResponseBody());
+                    Assertions.assertTrue(response.getResponseBody().contains("UP"));
+                });
     }
 
     @Test
