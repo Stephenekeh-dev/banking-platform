@@ -1,0 +1,223 @@
+name: CD — Deploy to EKS (Production)
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+  EKS_CLUSTER_NAME: banking-platform-cluster
+  K8S_NAMESPACE: banking-platform
+
+jobs:
+  # ─────────────────────────────────────────────
+  # JOB 1–3: Run all tests before anything else
+  # ─────────────────────────────────────────────
+  test-corebanking:
+    name: Test — corebanking
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: corebanking
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+      - name: Run tests
+        run: ./mvnw test -e
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: corebanking-test-reports
+          path: corebanking/target/surefire-reports/
+
+  test-audit-service:
+    name: Test — audit-service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: audit-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+      - name: Run tests
+        run: ./mvnw test -e
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-service-test-reports
+          path: audit-service/target/surefire-reports/
+
+  test-api-gate:
+    name: Test — api-gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api-gate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+      - name: Run tests
+        run: ./mvnw test -e
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-gate-test-reports
+          path: api-gate/target/surefire-reports/
+
+  # ─────────────────────────────────────────────
+  # JOB 4: Build JARs, Docker Images, Push to ECR
+  # ─────────────────────────────────────────────
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    needs: [ test-corebanking, test-audit-service, test-api-gate ]
+    outputs:
+      image_tag: ${{ steps.tag.outputs.IMAGE_TAG }}
+
+    strategy:
+      matrix:
+        service:
+          - name: corebanking
+            ecr_repo: banking-platform/corebanking
+          - name: audit-service
+            ecr_repo: banking-platform/audit-service
+          - name: api-gate
+            ecr_repo: banking-platform/api-gate
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build JAR — ${{ matrix.service.name }}
+        working-directory: ${{ matrix.service.name }}
+        run: ./mvnw package -DskipTests
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image tag
+        id: tag
+        run: echo "IMAGE_TAG=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Build Docker image — ${{ matrix.service.name }}
+        working-directory: ${{ matrix.service.name }}
+        run: |
+          docker build \
+            -t $ECR_REGISTRY/${{ matrix.service.ecr_repo }}:${{ steps.tag.outputs.IMAGE_TAG }} \
+            -t $ECR_REGISTRY/${{ matrix.service.ecr_repo }}:latest \
+            .
+
+      - name: Push Docker image — ${{ matrix.service.name }}
+        run: |
+          docker push $ECR_REGISTRY/${{ matrix.service.ecr_repo }}:${{ steps.tag.outputs.IMAGE_TAG }}
+          docker push $ECR_REGISTRY/${{ matrix.service.ecr_repo }}:latest
+
+  # ─────────────────────────────────────────────
+  # JOB 5: Deploy to EKS
+  # ─────────────────────────────────────────────
+  deploy:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig \
+            --region $AWS_REGION \
+            --name $EKS_CLUSTER_NAME
+
+      - name: Set image tag
+        id: tag
+        run: echo "IMAGE_TAG=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Create namespace if not exists
+        run: |
+          kubectl get namespace $K8S_NAMESPACE || \
+          kubectl create namespace $K8S_NAMESPACE
+
+      - name: Deploy infrastructure (ConfigMap + Secrets)
+        run: |
+          kubectl apply -f k8s/infrastructure/ -n $K8S_NAMESPACE
+
+      - name: Deploy corebanking
+        run: |
+          kubectl apply -f k8s/corebanking/ -n $K8S_NAMESPACE
+          kubectl set image deployment/corebanking \
+            corebanking=$ECR_REGISTRY/banking-platform/corebanking:${{ steps.tag.outputs.IMAGE_TAG }} \
+            -n $K8S_NAMESPACE
+
+      - name: Deploy audit-service
+        run: |
+          kubectl apply -f k8s/audit-service/ -n $K8S_NAMESPACE
+          kubectl set image deployment/audit-service \
+            audit-service=$ECR_REGISTRY/banking-platform/audit-service:${{ steps.tag.outputs.IMAGE_TAG }} \
+            -n $K8S_NAMESPACE
+
+      - name: Deploy api-gate
+        run: |
+          kubectl apply -f k8s/api-gate/ -n $K8S_NAMESPACE
+          kubectl set image deployment/api-gate \
+            api-gate=$ECR_REGISTRY/banking-platform/api-gate:${{ steps.tag.outputs.IMAGE_TAG }} \
+            -n $K8S_NAMESPACE
+
+      - name: Wait for rollouts to complete
+        run: |
+          kubectl rollout status deployment/corebanking -n $K8S_NAMESPACE --timeout=120s
+          kubectl rollout status deployment/audit-service -n $K8S_NAMESPACE --timeout=120s
+          kubectl rollout status deployment/api-gate -n $K8S_NAMESPACE --timeout=120s
+
+      - name: Verify all pods are running
+        run: |
+          kubectl get pods -n $K8S_NAMESPACE
+          kubectl get services -n $K8S_NAMESPACE
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "Deployment failed — rolling back..."
+          kubectl rollout undo deployment/corebanking -n $K8S_NAMESPACE || true
+          kubectl rollout undo deployment/audit-service -n $K8S_NAMESPACE || true
+          kubectl rollout undo deployment/api-gate -n $K8S_NAMESPACE || true
+          echo " Rollback complete"

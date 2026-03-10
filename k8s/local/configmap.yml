@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: banking-platform-config
+  namespace: banking-platform
+data:
+  EUREKA_SERVER_URL: "http://eureka-server:8761/eureka/"
+  COREBANKING_SERVICE_URL: "http://corebanking:8080"
+  AUDIT_SERVICE_URL: "http://audit-service:8081"
+  SPRING_PROFILES_ACTIVE: "prod"
