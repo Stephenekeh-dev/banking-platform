@@ -190,9 +190,8 @@ class ApiGatewayRoutingTest {
     }
 
 
-    // ══════════════════════════════════════════════════════════════════════════
+
     // AUDIT SERVICE ROUTES
-    // ══════════════════════════════════════════════════════════════════════════
 
     @Test
     void shouldRouteAuditRequestToAuditService() throws Exception {

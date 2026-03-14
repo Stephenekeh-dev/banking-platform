@@ -34,4 +34,4 @@ spec:
   ports:
     - port: 9080
       targetPort: 9080
-  type: NodePort       # ← NodePort so you can access it from your browser
+  type: NodePort       #  NodePort so you can access it from your browser
